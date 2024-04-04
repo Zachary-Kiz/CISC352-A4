@@ -27,6 +27,11 @@ class PerceptronModel(object):
         Returns: a node containing a single number (the score)
         """
         "*** YOUR CODE HERE ***"
+        product = 0
+        for x in range(len(x_point)):
+            product += x_point[x] * self.w[x]
+        return nn.Node(product)
+
 
     def get_prediction(self, x_point):
         """
@@ -35,6 +40,11 @@ class PerceptronModel(object):
         Returns: -1 or 1
         """
         "*** YOUR CODE HERE ***"
+        node = self.run(x_point)
+        val = nn.as_scalar(node)
+        if val >= 0:
+            return 1
+        return -1
 
     def train_model(self, dataset):
         """
