@@ -29,7 +29,6 @@ class PerceptronModel(object):
         "*** YOUR CODE HERE ***"
         return nn.DotProduct(self.w, x_point)
 
-
     def get_prediction(self, x_point):
         """
         Calculates the predicted class for a single data point `x_point`.
@@ -37,11 +36,12 @@ class PerceptronModel(object):
         Returns: -1 or 1
         """
         "*** YOUR CODE HERE ***"
-        node = self.run(x_point)
-        val = nn.as_scalar(node)
-        if val >= 0:
+        score = self.run(x_point)
+        if nn.as_scalar(score) >= 0:
             return 1
-        return -1
+        else:
+            return -1
+
 
     def train_model(self, dataset):
         """
@@ -51,15 +51,12 @@ class PerceptronModel(object):
         converged = False
         while not converged:
             converged = True
-            for i in range(dataset.x.shape[0]):
-                x = nn.DataNode(dataset.x[i])
-                
-                y = dataset.y[i]
-                print(x,y)
-                prediction = self.get_prediction(x)
-                if prediction != nn.as_scalar(y):
-                    self.w.update(1 if nn.as_scalar(y) == 1 else -1, x)
+            for x, y in dataset:
+                y_pred = self.get_prediction(x)
+                if y_pred.data != y.data:
+                    self.w.update((y - y_pred).data, x.data)
                     converged = False
+                    break
 
 class RegressionModel(object):
     """
@@ -70,6 +67,8 @@ class RegressionModel(object):
     def __init__(self):
         # Initialize your model parameters here
         "*** YOUR CODE HERE ***"
+        self.w = nn.Parameter(1, 1)
+        self.b = nn.Parameter(1, 1)
 
     def run(self, x):
         """
@@ -81,6 +80,8 @@ class RegressionModel(object):
             A node with shape (batch_size x 1) containing predicted y-values
         """
         "*** YOUR CODE HERE ***"
+        return nn.AddBias(nn.Linear(x, self.w), self.b)
+
 
     def get_loss(self, x, y):
         """
@@ -93,12 +94,23 @@ class RegressionModel(object):
         Returns: a loss node
         """
         "*** YOUR CODE HERE ***"
-
+        y_pred = self.run(x)
+        return nn.SquareLoss(y_pred, y)
     def train_model(self, dataset):
         """
         Trains the model.
         """
         "*** YOUR CODE HERE ***"
+        converged = False
+        while not converged:
+            converged = True
+            for x, y in dataset:
+                loss = self.get_loss(x, y)
+                grad_w, grad_b = nn.gradients([self.w, self.b], loss)
+                self.w.update(-0.01, grad_w)
+                self.b.update(-0.01, grad_b)
+                if nn.as_scalar(loss) > 1e-5:  # Adjust convergence criteria
+                    converged = False
 
 class DigitClassificationModel(object):
     """
@@ -117,7 +129,8 @@ class DigitClassificationModel(object):
     def __init__(self):
         # Initialize your model parameters here
         "*** YOUR CODE HERE ***"
-
+        self.w = nn.Parameter(784, 10)
+        self.b = nn.Parameter(1, 10)
     def run(self, x):
         """
         Runs the model for a batch of examples.
@@ -133,6 +146,8 @@ class DigitClassificationModel(object):
                 (also called logits)
         """
         "*** YOUR CODE HERE ***"
+        return nn.AddBias(nn.Linear(x, self.w), self.b)
+
 
     def get_loss(self, x, y):
         """
@@ -148,10 +163,20 @@ class DigitClassificationModel(object):
         Returns: a loss node
         """
         "*** YOUR CODE HERE ***"
+        logits = self.run(x)
+        return nn.SoftmaxLoss(logits, y)
+
 
     def train_model(self, dataset):
         """
         Trains the model.
         """
         "*** YOUR CODE HERE ***"
-
+        learning_rate = 0.01
+        for epoch in range(nn.epochs):
+            for x, y in dataset.iterate_once(nn.batch_size):
+                loss = self.get_loss(x, y)
+                # Assuming we have a way to compute gradients and update parameters
+                gradients = nn.gradients(loss, [self.w, self.b])
+                self.w.update(gradients[0], -learning_rate)
+                self.b.update(gradients[1], -learning_rate)
