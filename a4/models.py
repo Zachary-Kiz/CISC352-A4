@@ -103,12 +103,12 @@ class RegressionModel(object):
         Trains the model.
         """
         "*** YOUR CODE HERE ***"
-        learning_rate=0.01
+        learning_rate=0.2
         convergence_threshold = 1e-5
         while True:
             total_loss = 0
             batches = 0
-            for x, y in dataset.iterate_once(1):
+            for x, y in dataset.iterate_once(10):
                 loss = self.get_loss(x, y)
                 total_loss += nn.as_scalar(loss)
                 batches +=1
@@ -195,7 +195,7 @@ class DigitClassificationModel(object):
         epochs=10
         for epoch in range(epochs):
             total_loss = 0
-            for x, y in dataset.iterate_once(600):  
+            for x, y in dataset.iterate_once(10):  
                 loss = self.get_loss(x, y)
                 total_loss += nn.as_scalar(loss)
                 
