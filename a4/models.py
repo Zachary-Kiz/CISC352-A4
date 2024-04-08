@@ -48,16 +48,18 @@ class PerceptronModel(object):
         Train the perceptron until convergence.
         """
         "*** YOUR CODE HERE ***"
-        converged = False
-        while not converged:
-            converged = True
-            for x, y in dataset:
-                y_pred = self.get_prediction(x)
-                if y_pred.data != y.data:
-                    self.w.update((y - y_pred).data, x.data)
-                    converged = False
-                    break
-
+        while True:  # Continuously train until the model is fully accurate on the dataset
+            weight_was_updated = False  # Initialize flag to false at the start of each pass through the dataset
+            for x, y in dataset.iterate_once(1):  # Iterate through each example in the dataset
+                prediction = self.get_prediction(x)  # Predict the class based on current weights
+                actual = nn.as_scalar(y)  # Convert the expected label from a node to a scalar value
+                
+                if prediction != actual:  # If the prediction does not match the actual label
+                    self.w.update(actual, x)  # Update weights to correct the misclassification
+                    weight_was_updated = True  # Indicate that at least one weight was updated in this pass
+                    
+            if not weight_was_updated:  # If no weights were updated in this pass, the model is fully trained
+                break
 class RegressionModel(object):
     """
     A neural network model for approximating a function that maps from real
@@ -101,16 +103,24 @@ class RegressionModel(object):
         Trains the model.
         """
         "*** YOUR CODE HERE ***"
-        converged = False
-        while not converged:
-            converged = True
-            for x, y in dataset:
+        learning_rate=0.01
+        convergence_threshold = 1e-5
+        while True:
+            total_loss = 0
+            batches = 0
+            for x, y in dataset.iterate_once(1):
                 loss = self.get_loss(x, y)
-                grad_w, grad_b = nn.gradients([self.w, self.b], loss)
-                self.w.update(-0.01, grad_w)
-                self.b.update(-0.01, grad_b)
-                if nn.as_scalar(loss) > 1e-5:  # Adjust convergence criteria
-                    converged = False
+                total_loss += nn.as_scalar(loss)
+                batches +=1
+                # Compute gradients and update parameters
+                self.w.update(-learning_rate * nn.gradient(loss, self.w))
+                self.b.update(-learning_rate * nn.gradient(loss, self.b))
+            average_loss = total_loss/batches
+
+            if average_loss < convergence_threshold:
+                break
+            convergence_threshold = average_loss
+
 
 class DigitClassificationModel(object):
     """
@@ -129,8 +139,13 @@ class DigitClassificationModel(object):
     def __init__(self):
         # Initialize your model parameters here
         "*** YOUR CODE HERE ***"
-        self.w = nn.Parameter(784, 10)
-        self.b = nn.Parameter(1, 10)
+        self.hidden_weights = nn.Parameter(784, 128)  # Weights between input layer and hidden layer
+        self.hidden_bias = nn.Parameter(1, 128)  # Bias for hidden layer
+        
+        # For the output layer
+        self.output_weights = nn.Parameter(128, 10)  # Weights between hidden layer and output layer
+        self.output_bias = nn.Parameter(1, 10) 
+        
     def run(self, x):
         """
         Runs the model for a batch of examples.
@@ -146,7 +161,11 @@ class DigitClassificationModel(object):
                 (also called logits)
         """
         "*** YOUR CODE HERE ***"
-        return nn.AddBias(nn.Linear(x, self.w), self.b)
+        hidden = nn.ReLU(nn.AddBias(nn.Linear(x, self.hidden_weights), self.hidden_bias))
+        
+        # Output layer
+        output = nn.AddBias(nn.Linear(hidden, self.output_weights), self.output_bias)
+        return output
 
 
     def get_loss(self, x, y):
@@ -172,11 +191,23 @@ class DigitClassificationModel(object):
         Trains the model.
         """
         "*** YOUR CODE HERE ***"
-        learning_rate = 0.01
-        for epoch in range(nn.epochs):
-            for x, y in dataset.iterate_once(nn.batch_size):
+        learning_rate=0.05
+        epochs=10
+        for epoch in range(epochs):
+            total_loss = 0
+            for x, y in dataset.iterate_once(600):  
                 loss = self.get_loss(x, y)
-                # Assuming we have a way to compute gradients and update parameters
-                gradients = nn.gradients(loss, [self.w, self.b])
-                self.w.update(gradients[0], -learning_rate)
-                self.b.update(gradients[1], -learning_rate)
+                total_loss += nn.as_scalar(loss)
+                
+                # Compute gradients
+                gradients = nn.gradients(loss, [self.hidden_weights, self.hidden_bias, self.output_weights, self.output_bias])
+                
+                # Update parameters
+                self.hidden_weights.update(-learning_rate, gradients[0])
+                self.hidden_bias.update(-learning_rate, gradients[1])
+                self.output_weights.update(-learning_rate, gradients[2])
+                self.output_bias.update(-learning_rate, gradients[3])
+        
+                valid_acc = dataset.get_validation_accuracy()
+                if valid_acc < 0.98:
+                    break
