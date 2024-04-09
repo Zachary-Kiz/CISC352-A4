@@ -191,11 +191,11 @@ class DigitClassificationModel(object):
         Trains the model.
         """
         "*** YOUR CODE HERE ***"
-        learning_rate=0.05
-        epochs=10
+        learning_rate=0.1
+        epochs=13
         for epoch in range(epochs):
             total_loss = 0
-            for x, y in dataset.iterate_once(10):  
+            for x, y in dataset.iterate_once(100):  
                 loss = self.get_loss(x, y)
                 total_loss += nn.as_scalar(loss)
                 
@@ -209,5 +209,5 @@ class DigitClassificationModel(object):
                 self.output_bias.update(-learning_rate, gradients[3])
         
                 valid_acc = dataset.get_validation_accuracy()
-                if valid_acc >= 0.98:
+                if valid_acc >= 0.975:
                     break
