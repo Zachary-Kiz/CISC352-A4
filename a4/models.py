@@ -82,7 +82,8 @@ class RegressionModel(object):
             A node with shape (batch_size x 1) containing predicted y-values
         """
         "*** YOUR CODE HERE ***"
-        return nn.AddBias(nn.Linear(x, self.w), self.b)
+        xw = nn.Linear(x, self.w)
+        return nn.AddBias(xw, self.b)
 
 
     def get_loss(self, x, y):
@@ -98,28 +99,27 @@ class RegressionModel(object):
         "*** YOUR CODE HERE ***"
         y_pred = self.run(x)
         return nn.SquareLoss(y_pred, y)
+    
     def train_model(self, dataset):
         """
         Trains the model.
         """
         "*** YOUR CODE HERE ***"
-        learning_rate=0.2
-        convergence_threshold = 1e-5
+        learning_rate=0.01
+        target_loss = 0.02
         while True:
             total_loss = 0
             batches = 0
-            for x, y in dataset.iterate_once(10):
+            for x, y in dataset.iterate_once(1):
                 loss = self.get_loss(x, y)
-                total_loss += nn.as_scalar(loss)
+                total_loss = nn.as_scalar(loss)
                 batches +=1
+                grad_w, grad_b = nn.gradients([self.w,self.b],loss)
                 # Compute gradients and update parameters
-                self.w.update(-learning_rate * nn.gradient(loss, self.w))
-                self.b.update(-learning_rate * nn.gradient(loss, self.b))
-            average_loss = total_loss/batches
-
-            if average_loss < convergence_threshold:
-                break
-            convergence_threshold = average_loss
+                self.w.update(-learning_rate, grad_w )
+                self.b.update(-learning_rate, grad_b)
+                if total_loss <= target_loss:
+                    break
 
 
 class DigitClassificationModel(object):
@@ -200,7 +200,7 @@ class DigitClassificationModel(object):
                 total_loss += nn.as_scalar(loss)
                 
                 # Compute gradients
-                gradients = nn.gradients(loss, [self.hidden_weights, self.hidden_bias, self.output_weights, self.output_bias])
+                gradients = nn.gradients( [self.hidden_weights, self.hidden_bias, self.output_weights, self.output_bias], loss)
                 
                 # Update parameters
                 self.hidden_weights.update(-learning_rate, gradients[0])
@@ -209,5 +209,5 @@ class DigitClassificationModel(object):
                 self.output_bias.update(-learning_rate, gradients[3])
         
                 valid_acc = dataset.get_validation_accuracy()
-                if valid_acc < 0.98:
+                if valid_acc >= 0.98:
                     break
